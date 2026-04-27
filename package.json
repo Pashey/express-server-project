@@ -14,13 +14,19 @@
   "prisma": {
     "seed": "node prisma/seed.js"
   },
-  "keywords": ["express", "prisma", "quiz"],
+  "keywords": [
+    "express",
+    "prisma",
+    "quiz"
+  ],
   "author": "",
   "license": "MIT",
   "type": "commonjs",
   "dependencies": {
     "@prisma/client": "^6.19.3",
-    "express": "^5.2.1"
+    "bcrypt": "^6.0.0",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3"
   },
   "devDependencies": {
     "prisma": "^6.19.3"

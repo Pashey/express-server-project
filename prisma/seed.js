@@ -1,20 +1,9 @@
 const { PrismaClient } = require("@prisma/client");
+const bcrypt = require("bcrypt");
 const prisma = new PrismaClient();
 
-// Function to reset auto-increment counters
-async function resetAutoIncrement() {
-  try {
-    // Reset auto-increment for MySQL tables
-    await prisma.$executeRawUnsafe(`ALTER TABLE questions AUTO_INCREMENT = 1`);
-    await prisma.$executeRawUnsafe(`ALTER TABLE keywords AUTO_INCREMENT = 1`);
-    console.log("✓ Auto-increment counters reset");
-  } catch (error) {
-    console.log("Note: Auto-increment reset skipped (tables might be empty)");
-  }
-}
-
-// Seed data - Questions about Finland
-const seedQuestions = [
+// Quiz questions data
+const quizQuestions = [
   {
     question: "When did Finland gain independence?",
     answer: "1917",
@@ -59,25 +48,38 @@ const seedQuestions = [
 
 async function main() {
   console.log("🌱 Starting database seeding...");
-  
-  // Reset auto-increment counters
-  await resetAutoIncrement();
-  
-  // Clear existing data (order matters due to foreign keys)
+
+  // First, clean up existing data (order matters due to foreign keys)
   console.log("📦 Clearing existing data...");
   await prisma.keyword.deleteMany();
   await prisma.question.deleteMany();
+  await prisma.user.deleteMany();
   
-  console.log(`✓ Cleared existing questions and keywords`);
+  console.log("✓ Cleared existing data");
+
+  // Create a default/admin user
+  console.log("👤 Creating default user...");
+  const hashedPassword = await bcrypt.hash("1234", 10);
+  const user = await prisma.user.create({
+    data: {
+      email: "admin@example.com",
+      password: hashedPassword,
+      name: "Admin User",
+    },
+  });
+
+  console.log(`✅ Created user: ${user.email} (ID: ${user.id})`);
+  console.log(`   Password: 1234`);
+
+  // Create quiz questions associated with the user
+  console.log("📝 Creating quiz questions...");
   
-  // Insert new data
-  console.log("📝 Inserting new questions...");
-  
-  for (const q of seedQuestions) {
+  for (const q of quizQuestions) {
     const createdQuestion = await prisma.question.create({
       data: {
         question: q.question,
         answer: q.answer,
+        userId: user.id,  // Associate question with the user
         keywords: {
           connectOrCreate: q.keywords.map((kw) => ({
             where: { name: kw },
@@ -88,14 +90,16 @@ async function main() {
     });
     console.log(`  ✓ Added: ${createdQuestion.question.substring(0, 50)}...`);
   }
-  
-  // Show statistics
+
+  // Display statistics
   const questionCount = await prisma.question.count();
   const keywordCount = await prisma.keyword.count();
+  const userCount = await prisma.user.count();
   
-  console.log("\n✅ Seeding completed successfully!");
-  console.log(`📚 Total questions: ${questionCount}`);
-  console.log(`🏷️  Total keywords: ${keywordCount}`);
+  console.log("\n📊 Database Statistics:");
+  console.log(`   👥 Total users: ${userCount}`);
+  console.log(`   📚 Total questions: ${questionCount}`);
+  console.log(`   🏷️  Total keywords: ${keywordCount}`);
   
   // Display all keywords
   const allKeywords = await prisma.keyword.findMany({
@@ -103,6 +107,8 @@ async function main() {
   });
   console.log("\n📋 Available keywords:");
   console.log(allKeywords.map(k => `  - ${k.name}`).join("\n"));
+  
+  console.log("\n✅ Seeding completed successfully!");
 }
 
 main()

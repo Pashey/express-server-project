@@ -7,10 +7,24 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique @db.VarChar(255)
+  password  String   @db.VarChar(255)
+  name      String   @db.VarChar(100)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  questions Question[]
+
+  @@map("users")
+}
+
 model Question {
   id       Int      @id @default(autoincrement())
   question String   @db.Text
-  answer   String
+  answer   String   @db.VarChar(255)
+  userId   Int
+  user     User     @relation(fields: [userId], references: [id])
   keywords Keyword[]
 
   @@map("questions")
