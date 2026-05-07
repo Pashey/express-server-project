@@ -15,17 +15,20 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   questions Question[]
+  attempts  Attempt[]
 
   @@map("users")
 }
 
 model Question {
-  id       Int      @id @default(autoincrement())
-  question String   @db.Text
-  answer   String   @db.VarChar(255)
-  userId   Int
-  user     User     @relation(fields: [userId], references: [id])
-  keywords Keyword[]
+  id        Int      @id @default(autoincrement())
+  question  String   @db.Text
+  answer    String   @db.VarChar(255)
+  imageUrl  String?  @db.VarChar(255)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  keywords  Keyword[]
+  attempts  Attempt[]
 
   @@map("questions")
 }
@@ -36,4 +39,18 @@ model Keyword {
   questions Question[]
 
   @@map("keywords")
+}
+
+model Attempt {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id])
+  questionId Int
+  question   Question @relation(fields: [questionId], references: [id])
+  userAnswer String   @db.VarChar(255)
+  isCorrect  Boolean
+  attemptedAt DateTime @default(now())
+
+  @@unique([userId, questionId])
+  @@map("attempts")
 }
