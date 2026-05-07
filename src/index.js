@@ -7,21 +7,19 @@ const prisma = require("./lib/prisma");
 
 const PORT = process.env.PORT || 3000;
 
-// Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve uploaded images
 app.use("/uploads", express.static(path.join(__dirname, "..", "public", "uploads")));
 
-// Serve static frontend files (PLACED BEFORE API ROUTES)
-app.use(express.static(path.join(__dirname, "..", "public")));  // ← UPDATED LINE
 
-// Routes (API routes fall through after static files)
+app.use(express.static(path.join(__dirname, "..", "public"))); 
+
+
 app.use("/api/auth", authRouter);
 app.use("/api/questions", questionsRouter);
 
-// Home route (only if no static file matches)
+
 app.get("/", (req, res) => {
   res.json({
     message: "Welcome to the Quiz API",
@@ -42,12 +40,12 @@ app.get("/", (req, res) => {
   });
 });
 
-// 404 handler
+
 app.use((req, res) => {
   res.status(404).json({ msg: "Not found" });
 });
 
-// Error handling middleware
+
 app.use((err, req, res, next) => {
   console.error("Error:", err);
   
@@ -65,14 +63,14 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start server
+
 const server = app.listen(PORT, () => {
   console.log(`✅ Server running on http://localhost:${PORT}`);
   console.log(`🖼️  Uploaded images available at: http://localhost:${PORT}/uploads/`);
   console.log(`🌐 Frontend available at: http://localhost:${PORT}/`);
 });
 
-// Graceful shutdown
+
 process.on("SIGINT", async () => {
   console.log("\n🛑 Shutting down gracefully...");
   await prisma.$disconnect();

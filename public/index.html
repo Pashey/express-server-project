@@ -48,33 +48,6 @@
       gap: 10px;
     }
 
-    .auth-form {
-      background: white;
-      border-radius: 12px;
-      padding: 20px;
-      margin-bottom: 20px;
-      max-width: 400px;
-      margin: 0 auto 20px;
-    }
-
-    .auth-form input {
-      width: 100%;
-      padding: 10px;
-      margin-bottom: 10px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-    }
-
-    .auth-toggle {
-      text-align: center;
-      margin-top: 10px;
-    }
-
-    .auth-toggle a {
-      color: #667eea;
-      cursor: pointer;
-    }
-
     .user-info {
       display: flex;
       align-items: center;
@@ -112,10 +85,6 @@
       color: white;
     }
 
-    .btn-danger:hover {
-      background: #c53030;
-    }
-
     .btn-secondary {
       background: #48bb78;
       color: white;
@@ -132,10 +101,20 @@
       color: white;
     }
 
+    .btn-success {
+      background: #38a169;
+      color: white;
+    }
+
+    .btn-sm {
+      padding: 5px 10px;
+      font-size: 12px;
+    }
+
     /* Cards */
     .quiz-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
       gap: 20px;
       margin-bottom: 30px;
     }
@@ -206,19 +185,65 @@
       color: #4a5568;
     }
 
+    .solved-badge {
+      background: #48bb78;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: bold;
+    }
+
     .like-button {
       background: none;
       border: none;
       cursor: pointer;
-      font-size: 1.2rem;
+      font-size: 1rem;
       display: flex;
       align-items: center;
       gap: 5px;
       color: #e53e3e;
+      padding: 5px 10px;
+      border-radius: 20px;
     }
 
     .like-button:hover {
-      transform: scale(1.1);
+      background: #fff5f5;
+      transform: scale(1.05);
+    }
+
+    /* Answer input section */
+    .answer-section {
+      margin: 15px 0;
+      padding: 15px;
+      background: #f7fafc;
+      border-radius: 12px;
+    }
+
+    .answer-input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+
+    .feedback-message {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    .feedback-correct {
+      background: #c6f6d5;
+      color: #22543d;
+    }
+
+    .feedback-incorrect {
+      background: #fed7d7;
+      color: #742a2a;
     }
 
     /* Modal */
@@ -305,6 +330,7 @@
       display: flex;
       gap: 10px;
       margin-bottom: 20px;
+      flex-wrap: wrap;
     }
 
     .search-bar input {
@@ -313,6 +339,33 @@
       border: 1px solid #ddd;
       border-radius: 8px;
       font-size: 14px;
+    }
+
+    /* Stats Panel */
+    .stats-panel {
+      background: white;
+      border-radius: 16px;
+      padding: 15px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-around;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+
+    .stat-item {
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #667eea;
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      color: #888;
     }
 
     /* Loading */
@@ -356,12 +409,6 @@
     .hidden {
       display: none;
     }
-
-    /* Form container */
-    .form-container {
-      max-width: 400px;
-      margin: 20px auto;
-    }
   </style>
 </head>
 <body>
@@ -370,6 +417,30 @@
     <div class="header">
       <h1>🇫🇮 Finland Quiz App</h1>
       <div id="auth-section"></div>
+    </div>
+
+    <!-- Stats Panel (visible when logged in) -->
+    <div id="stats-panel" class="stats-panel hidden">
+      <div class="stat-item">
+        <div class="stat-value" id="stat-success-rate">0%</div>
+        <div class="stat-label">Success Rate</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="stat-attempts">0</div>
+        <div class="stat-label">Total Attempts</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="stat-correct">0</div>
+        <div class="stat-label">Correct</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="stat-incorrect">0</div>
+        <div class="stat-label">Incorrect</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="stat-completion">0%</div>
+        <div class="stat-label">Completion</div>
+      </div>
     </div>
 
     <!-- Main Content (visible when logged in) -->

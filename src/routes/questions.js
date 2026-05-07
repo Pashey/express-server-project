@@ -5,7 +5,7 @@ const authenticate = require("../middleware/auth");
 const isOwner = require("../middleware/isOwner");
 const upload = require("../middleware/upload");
 
-// Helper function to parse keywords from both JSON and multipart/form-data
+
 function parseKeywords(keywords) {
   if (Array.isArray(keywords)) return keywords;
   if (typeof keywords === "string") {
@@ -14,7 +14,7 @@ function parseKeywords(keywords) {
   return [];
 }
 
-// GET /api/questions - Get all questions with pagination
+
 router.get("/", authenticate, async (req, res) => {
   try {
     const { keyword, page = 1, limit = 5 } = req.query;
@@ -42,6 +42,10 @@ router.get("/", authenticate, async (req, res) => {
       include: { 
         keywords: true, 
         user: true,
+        likes: {
+          where: { userId: userId },
+          take: 1
+        },
         attempts: {
           where: { userId: userId },
           take: 1
@@ -54,25 +58,20 @@ router.get("/", authenticate, async (req, res) => {
 
     const totalQuestions = await prisma.question.count({ where });
 
-    // Get attempt counts for each question
-    const attemptCounts = await Promise.all(
+    
+    const likeCounts = await Promise.all(
       questions.map(async (q) => {
-        const totalAttempts = await prisma.attempt.count({
+        const count = await prisma.like.count({
           where: { questionId: q.id }
         });
-        const correctAttempts = await prisma.attempt.count({
-          where: { 
-            questionId: q.id,
-            isCorrect: true
-          }
-        });
-        return { id: q.id, totalAttempts, correctAttempts };
+        return { id: q.id, count };
       })
     );
 
-    // Format response
+   
     const formattedQuestions = questions.map(q => {
-      const attemptData = attemptCounts.find(ac => ac.id === q.id);
+      const likeCount = likeCounts.find(lc => lc.id === q.id)?.count || 0;
+      const likedByUser = q.likes && q.likes.length > 0;
       const userAttempt = q.attempts && q.attempts.length > 0 ? q.attempts[0] : null;
       const solved = userAttempt && userAttempt.isCorrect;
       
@@ -84,8 +83,8 @@ router.get("/", authenticate, async (req, res) => {
         userId: q.userId,
         keywords: q.keywords ? q.keywords.map(k => k.name) : [],
         userName: q.user?.name || null,
-        totalAttempts: attemptData?.totalAttempts || 0,
-        correctAttempts: attemptData?.correctAttempts || 0,
+        likeCount: likeCount,
+        likedByUser: likedByUser,
         solved: solved,
         attempted: !!userAttempt,
         userAnswer: userAttempt?.userAnswer || null
@@ -107,7 +106,7 @@ router.get("/", authenticate, async (req, res) => {
   }
 });
 
-// GET /api/questions/:questionId - Get single question
+
 router.get("/:questionId", authenticate, async (req, res) => {
   try {
     const questionId = parseInt(req.params.questionId);
@@ -122,6 +121,10 @@ router.get("/:questionId", authenticate, async (req, res) => {
       include: { 
         keywords: true, 
         user: true,
+        likes: {
+          where: { userId: userId },
+          take: 1
+        },
         attempts: {
           where: { userId: userId },
           take: 1
@@ -133,17 +136,11 @@ router.get("/:questionId", authenticate, async (req, res) => {
       return res.status(404).json({ message: "Question not found" });
     }
     
-    const totalAttempts = await prisma.attempt.count({
+    const likeCount = await prisma.like.count({
       where: { questionId: question.id }
     });
     
-    const correctAttempts = await prisma.attempt.count({
-      where: { 
-        questionId: question.id,
-        isCorrect: true
-      }
-    });
-    
+    const likedByUser = question.likes && question.likes.length > 0;
     const userAttempt = question.attempts && question.attempts.length > 0 ? question.attempts[0] : null;
     const solved = userAttempt && userAttempt.isCorrect;
     
@@ -155,8 +152,8 @@ router.get("/:questionId", authenticate, async (req, res) => {
       userId: question.userId,
       keywords: question.keywords ? question.keywords.map(k => k.name) : [],
       userName: question.user?.name || null,
-      totalAttempts: totalAttempts,
-      correctAttempts: correctAttempts,
+      likeCount: likeCount,
+      likedByUser: likedByUser,
       solved: solved,
       attempted: !!userAttempt,
       userAnswer: userAttempt?.userAnswer || null
@@ -167,7 +164,87 @@ router.get("/:questionId", authenticate, async (req, res) => {
   }
 });
 
-// POST /api/questions/:questionId/play - Submit answer for a question
+
+router.post("/:questionId/like", authenticate, async (req, res) => {
+  try {
+    const questionId = parseInt(req.params.questionId);
+    const userId = req.user.userId;
+
+    if (isNaN(questionId)) {
+      return res.status(400).json({ message: "Invalid question ID" });
+    }
+
+    const question = await prisma.question.findUnique({
+      where: { id: questionId }
+    });
+
+    if (!question) {
+      return res.status(404).json({ message: "Question not found" });
+    }
+
+    
+    await prisma.like.upsert({
+      where: {
+        userId_questionId: {
+          userId: userId,
+          questionId: questionId
+        }
+      },
+      update: {},
+      create: {
+        userId: userId,
+        questionId: questionId
+      }
+    });
+
+    const likeCount = await prisma.like.count({
+      where: { questionId: questionId }
+    });
+
+    res.json({ liked: true, likeCount: likeCount });
+  } catch (error) {
+    console.error("Error liking question:", error);
+    res.status(500).json({ message: "Failed to like question" });
+  }
+});
+
+
+router.delete("/:questionId/like", authenticate, async (req, res) => {
+  try {
+    const questionId = parseInt(req.params.questionId);
+    const userId = req.user.userId;
+
+    if (isNaN(questionId)) {
+      return res.status(400).json({ message: "Invalid question ID" });
+    }
+
+    const question = await prisma.question.findUnique({
+      where: { id: questionId }
+    });
+
+    if (!question) {
+      return res.status(404).json({ message: "Question not found" });
+    }
+
+    await prisma.like.deleteMany({
+      where: {
+        userId: userId,
+        questionId: questionId
+      }
+    });
+
+    const likeCount = await prisma.like.count({
+      where: { questionId: questionId }
+    });
+
+    res.json({ liked: false, likeCount: likeCount });
+  } catch (error) {
+    console.error("Error unliking question:", error);
+    res.status(500).json({ message: "Failed to unlike question" });
+  }
+});
+
+
 router.post("/:questionId/play", authenticate, async (req, res) => {
   try {
     const questionId = parseInt(req.params.questionId);
@@ -190,10 +267,10 @@ router.post("/:questionId/play", authenticate, async (req, res) => {
       return res.status(404).json({ message: "Question not found" });
     }
 
-    // Check if answer is correct (case-insensitive, trimmed)
+    
     const isCorrect = question.answer.toLowerCase().trim() === userAnswer.toLowerCase().trim();
 
-    // Save the attempt (upsert)
+    
     const attempt = await prisma.attempt.upsert({
       where: {
         userId_questionId: {
@@ -214,13 +291,14 @@ router.post("/:questionId/play", authenticate, async (req, res) => {
       }
     });
 
-    // Format the response with the expected structure
+  
     res.json({
       id: attempt.id,
       correct: isCorrect,
       submittedAnswer: userAnswer,
       correctAnswer: question.answer,
-      createdAt: attempt.attemptedAt
+      createdAt: attempt.attemptedAt,
+      message: isCorrect ? "✅ Correct! Well done!" : "❌ Incorrect. Try again!"
     });
   } catch (error) {
     console.error("Error submitting answer:", error);
@@ -337,8 +415,8 @@ router.post("/", authenticate, upload.single("image"), async (req, res) => {
       userId: newQuestion.userId,
       keywords: newQuestion.keywords ? newQuestion.keywords.map((k) => k.name) : [],
       userName: newQuestion.user?.name || null,
-      totalAttempts: 0,
-      correctAttempts: 0,
+      likeCount: 0,
+      likedByUser: false,
       solved: false,
       attempted: false
     });
@@ -383,27 +461,13 @@ router.put("/:questionId", authenticate, isOwner, upload.single("image"), async 
       },
       include: { 
         keywords: true, 
-        user: true,
-        attempts: {
-          where: { userId: userId },
-          take: 1
-        }
+        user: true
       }
     });
 
-    const totalAttempts = await prisma.attempt.count({
+    const likeCount = await prisma.like.count({
       where: { questionId: updatedQuestion.id }
     });
-    
-    const correctAttempts = await prisma.attempt.count({
-      where: { 
-        questionId: updatedQuestion.id,
-        isCorrect: true
-      }
-    });
-    
-    const userAttempt = updatedQuestion.attempts && updatedQuestion.attempts.length > 0 ? updatedQuestion.attempts[0] : null;
-    const solved = userAttempt && userAttempt.isCorrect;
 
     res.json({
       id: updatedQuestion.id,
@@ -413,11 +477,7 @@ router.put("/:questionId", authenticate, isOwner, upload.single("image"), async 
       userId: updatedQuestion.userId,
       keywords: updatedQuestion.keywords ? updatedQuestion.keywords.map(k => k.name) : [],
       userName: updatedQuestion.user?.name || null,
-      totalAttempts: totalAttempts,
-      correctAttempts: correctAttempts,
-      solved: solved,
-      attempted: !!userAttempt,
-      userAnswer: userAttempt?.userAnswer || null
+      likeCount: likeCount
     });
   } catch (error) {
     console.error("Error updating question:", error);
@@ -428,6 +488,17 @@ router.put("/:questionId", authenticate, isOwner, upload.single("image"), async 
 // DELETE /api/questions/:questionId - Delete question
 router.delete("/:questionId", authenticate, isOwner, async (req, res) => {
   try {
+    // First delete all related likes
+    await prisma.like.deleteMany({
+      where: { questionId: req.question.id }
+    });
+    
+    // Then delete all related attempts
+    await prisma.attempt.deleteMany({
+      where: { questionId: req.question.id }
+    });
+    
+    // Then delete the question
     await prisma.question.delete({
       where: { id: req.question.id }
     });

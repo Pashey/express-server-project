@@ -1,11 +1,10 @@
-// DOM Elements
 let currentUser = null;
 let currentPage = 1;
 let currentKeyword = '';
 let totalPages = 1;
 let editingPostId = null;
 
-// Auth Modal Elements
+
 const authModal = document.getElementById('auth-modal');
 const authModalTitle = document.getElementById('auth-modal-title');
 const authEmail = document.getElementById('auth-email');
@@ -15,7 +14,7 @@ const authSubmit = document.getElementById('auth-submit');
 const authCancel = document.getElementById('auth-cancel');
 const authToggleLink = document.getElementById('auth-toggle-link');
 
-// Post Modal Elements
+
 const postModal = document.getElementById('post-modal');
 const postModalTitle = document.getElementById('post-modal-title');
 const postQuestion = document.getElementById('post-question');
@@ -25,8 +24,9 @@ const postImage = document.getElementById('post-image');
 const postSave = document.getElementById('post-save');
 const postCancel = document.getElementById('post-cancel');
 
-// Main content
+
 const mainContent = document.getElementById('main-content');
+const statsPanel = document.getElementById('stats-panel');
 const authSection = document.getElementById('auth-section');
 const quizContainer = document.getElementById('quiz-container');
 const paginationDiv = document.getElementById('pagination');
@@ -34,6 +34,13 @@ const searchInput = document.getElementById('search-input');
 const searchBtn = document.getElementById('search-btn');
 const clearSearchBtn = document.getElementById('clear-search');
 const createPostBtn = document.getElementById('create-post-btn');
+
+
+const statSuccessRate = document.getElementById('stat-success-rate');
+const statAttempts = document.getElementById('stat-attempts');
+const statCorrect = document.getElementById('stat-correct');
+const statIncorrect = document.getElementById('stat-incorrect');
+const statCompletion = document.getElementById('stat-completion');
 
 let isLoginMode = true;
 
@@ -46,28 +53,52 @@ function showMessage(text, type = 'success') {
   setTimeout(() => msg.remove(), 3000);
 }
 
-// Helper: Get auth headers
-function getAuthHeaders() {
-  const token = localStorage.getItem(CONFIG.STORAGE_KEY);
-  return { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+// Helper: Get auth token
+function getToken() {
+  return localStorage.getItem('quiz_token');
 }
 
 // Helper: API request
 async function apiRequest(endpoint, options = {}) {
   const url = `${CONFIG.API_URL}${endpoint}`;
-  const headers = options.body instanceof FormData 
-    ? { 'Authorization': `Bearer ${localStorage.getItem(CONFIG.STORAGE_KEY)}` }
-    : getAuthHeaders();
+  const token = getToken();
   
-  const response = await fetch(url, { ...options, headers });
+  const headers = {
+    'Authorization': `Bearer ${token}`,
+    ...options.headers
+  };
+  
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
+  
+  const response = await fetch(url, {
+    ...options,
+    headers
+  });
+  
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.message || error.error || 'Request failed');
   }
+  
   return response.json();
 }
 
-// Auth UI
+async function loadStats() {
+  try {
+    const stats = await apiRequest('/api/questions/user/stats');
+    statSuccessRate.textContent = `${stats.successRate}%`;
+    statAttempts.textContent = stats.totalAttempts;
+    statCorrect.textContent = stats.correctAnswers;
+    statIncorrect.textContent = stats.incorrectAnswers;
+    statCompletion.textContent = `${stats.completionRate}%`;
+  } catch (error) {
+    console.error('Error loading stats:', error);
+  }
+}
+
+
 function renderAuthSection() {
   if (currentUser) {
     authSection.innerHTML = `
@@ -79,6 +110,8 @@ function renderAuthSection() {
     `;
     document.getElementById('logout-btn')?.addEventListener('click', logout);
     mainContent.classList.remove('hidden');
+    statsPanel.classList.remove('hidden');
+    loadStats();
   } else {
     authSection.innerHTML = `
       <div class="auth-section">
@@ -89,6 +122,7 @@ function renderAuthSection() {
     document.getElementById('show-login')?.addEventListener('click', () => showAuthModal(true));
     document.getElementById('show-register')?.addEventListener('click', () => showAuthModal(false));
     mainContent.classList.add('hidden');
+    statsPanel.classList.add('hidden');
   }
 }
 
@@ -152,7 +186,7 @@ function logout() {
   showMessage('Logged out');
 }
 
-// Load questions
+
 async function loadQuestions() {
   try {
     quizContainer.innerHTML = '<div class="loading">Loading questions...</div>';
@@ -166,12 +200,75 @@ async function loadQuestions() {
     totalPages = data.totalPages;
     renderQuestions(data.data);
     renderPagination();
+    loadStats();
   } catch (error) {
     quizContainer.innerHTML = `<div class="loading">Error: ${escapeHtml(error.message)}</div>`;
   }
 }
 
-// Render questions
+
+async function submitAnswer(questionId, userAnswer) {
+  try {
+    const result = await apiRequest(`/api/questions/${questionId}/play`, {
+      method: 'POST',
+      body: JSON.stringify({ userAnswer })
+    });
+    
+   
+    const feedbackDiv = document.getElementById(`feedback-${questionId}`);
+    if (feedbackDiv) {
+      feedbackDiv.innerHTML = `
+        <div class="feedback-message ${result.correct ? 'feedback-correct' : 'feedback-incorrect'}">
+          ${result.message}
+          ${!result.correct ? `<br>Correct answer: ${result.correctAnswer}` : ''}
+        </div>
+      `;
+    }
+    
+    
+    loadQuestions();
+    loadStats();
+    
+    showMessage(result.message, result.correct ? 'success' : 'error');
+  } catch (error) {
+    showMessage(error.message, 'error');
+  }
+}
+
+
+async function handleLike(questionId, wasLiked) {
+  try {
+    if (wasLiked) {
+      
+      await fetch(`${CONFIG.API_URL}/api/questions/${questionId}/like`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${getToken()}`
+        }
+      });
+    } else {
+      
+      await fetch(`${CONFIG.API_URL}/api/questions/${questionId}/like`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${getToken()}`
+        }
+      });
+    }
+    
+    loadQuestions();
+  } catch (error) {
+    showMessage(error.message, 'error');
+  }
+}
+
+
+function toggleAnswer(id) {
+  const answerDiv = document.getElementById(`answer-${id}`);
+  answerDiv.classList.toggle('show');
+}
+
+
 function renderQuestions(questions) {
   if (!questions || questions.length === 0) {
     quizContainer.innerHTML = '<div class="loading">No questions found.</div>';
@@ -183,37 +280,48 @@ function renderQuestions(questions) {
       ${questions.map(q => `
         <div class="quiz-card">
           ${q.imageUrl ? `<img src="${q.imageUrl}" alt="Question image" class="quiz-image" />` : ''}
-          <div class="quiz-question">${escapeHtml(q.question)}</div>
-          <div class="quiz-answer" id="answer-${q.id}">${escapeHtml(q.answer)}</div>
+          <div class="quiz-question">
+            ${escapeHtml(q.question)}
+            ${q.solved ? '<span class="solved-badge">✓ Solved</span>' : ''}
+          </div>
           <div class="quiz-keywords">
             ${q.keywords.map(k => `<span class="keyword-tag">#${escapeHtml(k)}</span>`).join('')}
           </div>
+          
+          <!-- Answer Section -->
+          <div class="answer-section">
+            <input type="text" id="answer-input-${q.id}" class="answer-input" placeholder="Your answer..." />
+            <button class="btn-primary btn-sm" onclick="window.submitAnswer(${q.id}, document.getElementById('answer-input-${q.id}').value)">
+              Submit Answer
+            </button>
+            <div id="feedback-${q.id}"></div>
+          </div>
+          
+          <div class="quiz-answer" id="answer-${q.id}">
+            <strong>Answer:</strong> ${escapeHtml(q.answer)}
+          </div>
+          
           <div class="quiz-meta">
             <span>📝 by ${escapeHtml(q.userName)}</span>
-            <span>❤️ ${q.likeCount} likes</span>
-            <button class="like-button" data-id="${q.id}" data-liked="${q.likedByUser}">
+            <span>❤️ <span id="like-count-${q.id}">${q.likeCount || 0}</span> likes</span>
+            <button class="like-button" onclick="window.handleLike(${q.id}, ${q.likedByUser || false})">
               ${q.likedByUser ? '❤️ Liked' : '♡ Like'}
             </button>
+            <button class="btn-outline btn-sm" onclick="window.toggleAnswer(${q.id})">Show Answer</button>
           </div>
+          
           ${currentUser && q.userId === currentUser.id ? `
             <div class="quiz-meta">
-              <button class="btn-outline edit-post" data-id="${q.id}" data-question="${escapeHtml(q.question)}" data-answer="${escapeHtml(q.answer)}" data-keywords="${q.keywords.join(',')}">Edit</button>
-              <button class="btn-danger delete-post" data-id="${q.id}">Delete</button>
+              <button class="btn-outline btn-sm edit-post" data-id="${q.id}" data-question="${escapeHtml(q.question)}" data-answer="${escapeHtml(q.answer)}" data-keywords="${q.keywords.join(',')}">Edit</button>
+              <button class="btn-danger btn-sm delete-post" data-id="${q.id}">Delete</button>
             </div>
           ` : ''}
-          <button class="btn-outline show-answer" data-id="${q.id}">Show Answer</button>
         </div>
       `).join('')}
     </div>
   `;
   
-  // Attach event listeners
-  document.querySelectorAll('.like-button').forEach(btn => {
-    btn.addEventListener('click', () => handleLike(parseInt(btn.dataset.id), btn.dataset.liked === 'true'));
-  });
-  document.querySelectorAll('.show-answer').forEach(btn => {
-    btn.addEventListener('click', () => toggleAnswer(parseInt(btn.dataset.id)));
-  });
+  
   document.querySelectorAll('.edit-post').forEach(btn => {
     btn.addEventListener('click', () => openEditModal(
       parseInt(btn.dataset.id),
@@ -227,25 +335,12 @@ function renderQuestions(questions) {
   });
 }
 
-function toggleAnswer(id) {
-  const answerDiv = document.getElementById(`answer-${id}`);
-  answerDiv.classList.toggle('show');
-}
 
-async function handleLike(id, wasLiked) {
-  try {
-    if (wasLiked) {
-      await apiRequest(CONFIG.ROUTES.LIKE(id), { method: 'DELETE' });
-    } else {
-      await apiRequest(CONFIG.ROUTES.LIKE(id), { method: 'POST' });
-    }
-    loadQuestions();
-  } catch (error) {
-    showMessage(error.message, 'error');
-  }
-}
+window.submitAnswer = submitAnswer;
+window.handleLike = handleLike;
+window.toggleAnswer = toggleAnswer;
 
-// Render pagination
+
 function renderPagination() {
   if (totalPages <= 1) {
     paginationDiv.innerHTML = '';
@@ -272,7 +367,7 @@ function renderPagination() {
   });
 }
 
-// Post CRUD
+
 function openCreateModal() {
   editingPostId = null;
   postModalTitle.textContent = 'Create New Question';
@@ -315,7 +410,7 @@ async function savePost() {
       : CONFIG.ROUTES.QUESTIONS;
     const method = editingPostId ? 'PUT' : 'POST';
     
-    const token = localStorage.getItem(CONFIG.STORAGE_KEY);
+    const token = getToken();
     const response = await fetch(`${CONFIG.API_URL}${url}`, {
       method,
       headers: { 'Authorization': `Bearer ${token}` },
@@ -347,7 +442,7 @@ async function deletePost(id) {
   }
 }
 
-// Search
+
 function searchQuestions() {
   currentKeyword = searchInput.value.trim();
   currentPage = 1;
@@ -372,7 +467,7 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
-// Event listeners
+
 authSubmit.addEventListener('click', handleAuth);
 authCancel.addEventListener('click', () => authModal.classList.remove('active'));
 authToggleLink.addEventListener('click', () => showAuthModal(!isLoginMode));
@@ -384,20 +479,19 @@ createPostBtn?.addEventListener('click', openCreateModal);
 searchBtn?.addEventListener('click', searchQuestions);
 clearSearchBtn?.addEventListener('click', clearSearch);
 
-// Initialize
-function init() {
-  const token = localStorage.getItem(CONFIG.STORAGE_KEY);
+
+async function init() {
+  const token = getToken();
   if (token) {
-    apiRequest(CONFIG.ROUTES.PROFILE)
-      .then(data => {
-        currentUser = data.user;
-        renderAuthSection();
-        loadQuestions();
-      })
-      .catch(() => {
-        localStorage.removeItem(CONFIG.STORAGE_KEY);
-        renderAuthSection();
-      });
+    try {
+      const data = await apiRequest(CONFIG.ROUTES.PROFILE);
+      currentUser = data.user;
+      renderAuthSection();
+      loadQuestions();
+    } catch (error) {
+      localStorage.removeItem(CONFIG.STORAGE_KEY);
+      renderAuthSection();
+    }
   } else {
     renderAuthSection();
   }

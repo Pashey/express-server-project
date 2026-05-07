@@ -1,4 +1,3 @@
-// Configuration Constants
 const CONFIG = {
   API_URL: "",
   ROUTES: {

@@ -15,6 +15,7 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   questions Question[]
+  likes     Like[]      
   attempts  Attempt[]
 
   @@map("users")
@@ -28,6 +29,7 @@ model Question {
   userId    Int
   user      User     @relation(fields: [userId], references: [id])
   keywords  Keyword[]
+  likes     Like[]     
   attempts  Attempt[]
 
   @@map("questions")
@@ -39,6 +41,18 @@ model Keyword {
   questions Question[]
 
   @@map("keywords")
+}
+
+model Like {
+  id         Int      @id @default(autoincrement())
+  createdAt  DateTime @default(now())
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id])
+  questionId Int
+  question   Question @relation(fields: [questionId], references: [id])
+
+  @@unique([userId, questionId])
+  @@map("likes")
 }
 
 model Attempt {
