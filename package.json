@@ -9,27 +9,35 @@
     "db:migrate": "npx prisma migrate dev",
     "db:seed": "npx prisma db seed",
     "db:studio": "npx prisma studio",
-    "db:reset": "npx prisma migrate reset"
+    "db:reset": "npx prisma migrate reset",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:setup": "set DATABASE_URL=mysql://root:Oluchi@localhost:3306/quiz_app_test && npx prisma migrate deploy",
+    "test:coverage": "vitest run --coverage"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
   },
-  "keywords": [
-    "express",
-    "prisma",
-    "quiz"
-  ],
+  "keywords": ["express", "prisma", "quiz"],
   "author": "",
   "license": "MIT",
   "type": "commonjs",
   "dependencies": {
     "@prisma/client": "^6.19.3",
-    "bcrypt": "^6.0.0",
+    "bcrypt": "^5.1.1",
     "express": "^5.2.1",
-    "jsonwebtoken": "^9.0.3",
-    "multer": "^2.1.1"
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "pino": "^9.6.0",
+    "pino-http": "^10.4.0",
+    "pino-pretty": "^13.0.0",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
-    "prisma": "^6.19.3"
+    "@vitest/coverage-v8": "^3.1.1",
+    "dotenv": "^16.4.7",
+    "prisma": "^6.19.3",
+    "supertest": "^7.0.0",
+    "vitest": "^3.1.1"
   }
 }
