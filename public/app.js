@@ -1,18 +1,4 @@
-// --- State ---
-let isRegisterMode = false;
-
-// --- Helpers ---
-function getCurrentUserId() {
-  const token = getToken();
-  if (!token) return null;
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return payload.userId;
-  } catch {
-    return null;
-  }
-}
-
+// --- Auth helpers ---
 function getToken() {
   return localStorage.getItem(CONFIG.STORAGE_KEY);
 }
@@ -25,23 +11,41 @@ function removeToken() {
   localStorage.removeItem(CONFIG.STORAGE_KEY);
 }
 
-async function apiFetch(route, options = {}) {
+function getCurrentUserId() {
   const token = getToken();
-  const isFormData = options.body instanceof FormData;
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload.userId;
+  } catch {
+    return null;
+  }
+}
+
+// --- API helper ---
+async function apiFetch(url, options = {}) {
+  const token = getToken();
   const headers = { ...options.headers };
-  if (!isFormData) headers["Content-Type"] = "application/json";
+
   if (token) headers["Authorization"] = `Bearer ${token}`;
-  const res = await fetch(`${CONFIG.API_URL}${route}`, { ...options, headers });
+  if (!(options.body instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  const res = await fetch(CONFIG.API_URL + url, { ...options, headers });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || data.msg || "Request failed");
+  if (!res.ok) throw new Error(data.message || "Request failed");
   return data;
 }
 
 // --- Auth ---
+let isRegisterMode = false;
+
 function showAuth() {
   document.getElementById("auth-section").style.display = "block";
   document.getElementById("app-section").style.display = "none";
   document.getElementById("logout-btn").style.display = "none";
+  isRegisterMode = false;
   renderAuthForm();
 }
 
@@ -168,14 +172,19 @@ async function loadQuestions(keyword = "", page = 1) {
               <button class="btn btn-play" data-id="${q.id}">Play</button>
               <a href="#" class="read-more" data-id="${q.id}">See answer</a>
             </span>
-            ${
-              q.userId === currentUserId
-                ? `<span class="owner-actions">
-                    <button class="btn btn-edit" data-id="${q.id}">Edit</button>
-                    <button class="btn btn-delete" data-id="${q.id}">Delete</button>
-                  </span>`
-                : ""
-            }
+            <span class="right-actions">
+              <button class="btn btn-like ${q.likedByUser ? "liked" : ""}" data-id="${q.id}" data-liked="${q.likedByUser}">
+                ${q.likedByUser ? "♥" : "♡"} <span class="like-count">${q.likeCount || 0}</span>
+              </button>
+              ${
+                q.userId === currentUserId
+                  ? `<span class="owner-actions">
+                      <button class="btn btn-edit" data-id="${q.id}">Edit</button>
+                      <button class="btn btn-delete" data-id="${q.id}">Delete</button>
+                    </span>`
+                  : ""
+              }
+            </span>
           </div>
         </article>`
         )
@@ -230,6 +239,12 @@ async function loadQuestions(keyword = "", page = 1) {
     container.querySelectorAll(".btn-play").forEach((el) => {
       el.addEventListener("click", () => playQuestion(el.dataset.id));
     });
+
+    // Like button handlers
+    container.querySelectorAll(".btn-like").forEach((btn) => {
+      btn.addEventListener("click", () => toggleLike(btn));
+    });
+
   } catch (err) {
     if (err.message === "No token provided" || err.message === "Invalid or expired token") {
       removeToken();
@@ -237,6 +252,32 @@ async function loadQuestions(keyword = "", page = 1) {
       return;
     }
     container.innerHTML = `<p class="error">${err.message}</p>`;
+  }
+}
+
+// --- Like toggle ---
+async function toggleLike(btn) {
+  const qId = btn.dataset.id;
+  const liked = btn.dataset.liked === "true";
+  const countEl = btn.querySelector(".like-count");
+
+  try {
+    let result;
+    if (liked) {
+      result = await apiFetch(`${CONFIG.ROUTES.QUESTIONS}/${qId}/like`, { method: "DELETE" });
+      btn.dataset.liked = "false";
+      btn.classList.remove("liked");
+      btn.innerHTML = `♡ <span class="like-count">${result.likeCount}</span>`;
+    } else {
+      result = await apiFetch(`${CONFIG.ROUTES.QUESTIONS}/${qId}/like`, { method: "POST" });
+      btn.dataset.liked = "true";
+      btn.classList.add("liked");
+      btn.innerHTML = `♥ <span class="like-count">${result.likeCount}</span>`;
+    }
+    // Re-attach handler after innerHTML update
+    btn.addEventListener("click", () => toggleLike(btn));
+  } catch (err) {
+    alert(err.message);
   }
 }
 
@@ -261,20 +302,28 @@ async function loadQuestionDetail(qId) {
             ? `<div class="question-keywords">${q.keywords.map((k) => `<span class="keyword">${k}</span>`).join("")}</div>`
             : ""
         }
-        ${
-          isOwner
-            ? `<div class="question-actions detail-actions">
-                <button class="btn btn-edit" id="detail-edit-btn">Edit</button>
-                <button class="btn btn-delete" id="detail-delete-btn">Delete</button>
-              </div>`
-            : ""
-        }
+        <div class="question-actions detail-actions">
+          <button class="btn btn-like ${q.likedByUser ? "liked" : ""}" data-id="${q.id}" data-liked="${q.likedByUser}">
+            ${q.likedByUser ? "♥" : "♡"} <span class="like-count">${q.likeCount || 0}</span>
+          </button>
+          ${
+            isOwner
+              ? `<div class="owner-actions">
+                  <button class="btn btn-edit" id="detail-edit-btn">Edit</button>
+                  <button class="btn btn-delete" id="detail-delete-btn">Delete</button>
+                </div>`
+              : ""
+          }
+        </div>
       </article>`;
 
     document.getElementById("back-btn").addEventListener("click", (e) => {
       e.preventDefault();
       loadQuestions();
     });
+
+    const likeBtn = container.querySelector(".btn-like");
+    if (likeBtn) likeBtn.addEventListener("click", () => toggleLike(likeBtn));
 
     if (isOwner) {
       document.getElementById("detail-edit-btn").addEventListener("click", () => showQuestionForm(qId));
@@ -405,7 +454,7 @@ async function playQuestion(qId) {
       try {
         const result = await apiFetch(`${CONFIG.ROUTES.QUESTIONS}/${qId}/play`, {
           method: "POST",
-          body: JSON.stringify({ answer }),
+          body: JSON.stringify({ userAnswer: answer }),
         });
 
         if (result.correct) {
