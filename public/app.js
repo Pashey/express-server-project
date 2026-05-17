@@ -38,6 +38,13 @@ async function apiFetch(url, options = {}) {
   return data;
 }
 
+// --- Heart helpers ---
+function heartIcon(liked) {
+  return liked
+    ? `<span style="color:#ff3b3b;-webkit-text-fill-color:#ff3b3b;font-style:normal">&#9829;</span>`
+    : `<span style="color:#aaa;-webkit-text-fill-color:#aaa;font-style:normal">&#9825;</span>`;
+}
+
 // --- Auth ---
 let isRegisterMode = false;
 
@@ -174,7 +181,7 @@ async function loadQuestions(keyword = "", page = 1) {
             </span>
             <span class="right-actions">
               <button class="btn btn-like ${q.likedByUser ? "liked" : ""}" data-id="${q.id}" data-liked="${q.likedByUser}">
-                ${q.likedByUser ? "♥" : "♡"} <span class="like-count">${q.likeCount || 0}</span>
+                ${heartIcon(q.likedByUser)} <span class="like-count">${q.likeCount || 0}</span>
               </button>
               ${
                 q.userId === currentUserId
@@ -240,7 +247,6 @@ async function loadQuestions(keyword = "", page = 1) {
       el.addEventListener("click", () => playQuestion(el.dataset.id));
     });
 
-    // Like button handlers
     container.querySelectorAll(".btn-like").forEach((btn) => {
       btn.addEventListener("click", () => toggleLike(btn));
     });
@@ -259,7 +265,6 @@ async function loadQuestions(keyword = "", page = 1) {
 async function toggleLike(btn) {
   const qId = btn.dataset.id;
   const liked = btn.dataset.liked === "true";
-  const countEl = btn.querySelector(".like-count");
 
   try {
     let result;
@@ -267,14 +272,13 @@ async function toggleLike(btn) {
       result = await apiFetch(`${CONFIG.ROUTES.QUESTIONS}/${qId}/like`, { method: "DELETE" });
       btn.dataset.liked = "false";
       btn.classList.remove("liked");
-      btn.innerHTML = `♡ <span class="like-count">${result.likeCount}</span>`;
+      btn.innerHTML = `${heartIcon(false)} <span class="like-count">${result.likeCount}</span>`;
     } else {
       result = await apiFetch(`${CONFIG.ROUTES.QUESTIONS}/${qId}/like`, { method: "POST" });
       btn.dataset.liked = "true";
       btn.classList.add("liked");
-      btn.innerHTML = `♥ <span class="like-count">${result.likeCount}</span>`;
+      btn.innerHTML = `${heartIcon(true)} <span class="like-count">${result.likeCount}</span>`;
     }
-    // Re-attach handler after innerHTML update
     btn.addEventListener("click", () => toggleLike(btn));
   } catch (err) {
     alert(err.message);
@@ -304,7 +308,7 @@ async function loadQuestionDetail(qId) {
         }
         <div class="question-actions detail-actions">
           <button class="btn btn-like ${q.likedByUser ? "liked" : ""}" data-id="${q.id}" data-liked="${q.likedByUser}">
-            ${q.likedByUser ? "♥" : "♡"} <span class="like-count">${q.likeCount || 0}</span>
+            ${heartIcon(q.likedByUser)} <span class="like-count">${q.likeCount || 0}</span>
           </button>
           ${
             isOwner
