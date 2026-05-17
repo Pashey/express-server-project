@@ -456,6 +456,33 @@
       box-shadow: 0 4px 18px rgba(81, 207, 102, 0.35);
     }
 
+    /* Like button */
+    .btn-like {
+      background: rgba(255, 255, 255, 0.06);
+      color: #aaa;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 0.95rem;
+      padding: 0.4rem 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .btn-like:hover {
+      background: rgba(255, 107, 107, 0.15);
+      color: #ff3b3b;
+      border-color: rgba(255, 59, 59, 0.4);
+    }
+
+    .btn-like.liked {
+      background: rgba(255, 59, 59, 0.18);
+      color: #ff3b3b !important;
+      border-color: rgba(255, 59, 59, 0.45);
+      box-shadow: 0 0 10px rgba(255, 59, 59, 0.2);
+    }
+
+    .btn-like.liked .like-count {
+      color: #ff3b3b !important;
+    }
+
     /* Question actions row */
     .question-actions {
       display: flex;
@@ -467,6 +494,12 @@
     .question-actions > span {
       display: flex;
       gap: 0.6rem;
+      align-items: center;
+    }
+
+    .right-actions {
+      display: flex;
+      gap: 0.5rem;
       align-items: center;
     }
 
