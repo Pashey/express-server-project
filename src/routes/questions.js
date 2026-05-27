@@ -6,6 +6,8 @@ const isOwner = require("../middleware/isOwner");
 const upload = require("../middleware/upload");
 const { ValidationError, NotFoundError } = require("../lib/errors");
 
+const VALID_DIFFICULTIES = ["easy", "medium", "hard"];
+
 function parseKeywords(keywords) {
   if (Array.isArray(keywords)) return keywords;
   if (typeof keywords === "string") {
@@ -48,7 +50,7 @@ router.get("/keywords/all", authenticate, async (req, res, next) => {
 
 router.get("/", authenticate, async (req, res, next) => {
   try {
-    const { keyword, page = 1, limit = 5 } = req.query;
+    const { keyword, difficulty, page = 1, limit = 5 } = req.query;
     const userId = req.user.userId;
 
     const currentPage = Math.max(1, parseInt(page) || 1);
@@ -57,7 +59,10 @@ router.get("/", authenticate, async (req, res, next) => {
 
     let where = {};
     if (keyword) {
-      where = { keywords: { some: { name: keyword.toLowerCase() } } };
+      where.keywords = { some: { name: keyword.toLowerCase() } };
+    }
+    if (difficulty && VALID_DIFFICULTIES.includes(difficulty)) {
+      where.difficulty = difficulty;
     }
 
     const questions = await prisma.question.findMany({
@@ -81,6 +86,7 @@ router.get("/", authenticate, async (req, res, next) => {
       question: q.question,
       answer: q.answer,
       imageUrl: q.imageUrl,
+      difficulty: q.difficulty,
       userId: q.userId,
       keywords: q.keywords?.map(k => k.name) || [],
       userName: q.user?.name || null,
@@ -120,6 +126,7 @@ router.get("/:questionId", authenticate, async (req, res, next) => {
       question: question.question,
       answer: question.answer,
       imageUrl: question.imageUrl,
+      difficulty: question.difficulty,
       userId: question.userId,
       keywords: question.keywords?.map(k => k.name) || [],
       userName: question.user?.name || null,
@@ -213,17 +220,20 @@ router.post("/:questionId/play", authenticate, async (req, res, next) => {
 
 router.post("/", authenticate, upload.single("image"), async (req, res, next) => {
   try {
-    const { question, answer, keywords } = req.body;
+    const { question, answer, keywords, difficulty } = req.body;
 
     if (!question || !answer) {
       return res.status(400).json({ message: "Question and answer are required" });
     }
 
+    const resolvedDifficulty = VALID_DIFFICULTIES.includes(difficulty) ? difficulty : "medium";
     const keywordArray = parseKeywords(keywords);
+
     const newQuestion = await prisma.question.create({
       data: {
         question,
         answer,
+        difficulty: resolvedDifficulty,
         imageUrl: req.file ? `/uploads/${req.file.filename}` : null,
         userId: req.user.userId,
         keywords: keywordArray.length ? {
@@ -241,6 +251,7 @@ router.post("/", authenticate, upload.single("image"), async (req, res, next) =>
       question: newQuestion.question,
       answer: newQuestion.answer,
       imageUrl: newQuestion.imageUrl,
+      difficulty: newQuestion.difficulty,
       userId: newQuestion.userId,
       keywords: newQuestion.keywords?.map(k => k.name) || [],
       userName: newQuestion.user?.name || null,
@@ -256,18 +267,21 @@ router.post("/", authenticate, upload.single("image"), async (req, res, next) =>
 
 router.put("/:questionId", authenticate, isOwner, upload.single("image"), async (req, res, next) => {
   try {
-    const { question, answer, keywords, existingImageUrl } = req.body;
+    const { question, answer, keywords, difficulty, existingImageUrl } = req.body;
 
     if (!question || !answer) {
       return res.status(400).json({ message: "Question and answer are required" });
     }
 
+    const resolvedDifficulty = VALID_DIFFICULTIES.includes(difficulty) ? difficulty : "medium";
     const keywordArray = parseKeywords(keywords);
+
     const updatedQuestion = await prisma.question.update({
       where: { id: req.question.id },
       data: {
         question,
         answer,
+        difficulty: resolvedDifficulty,
         imageUrl: req.file ? `/uploads/${req.file.filename}` : existingImageUrl,
         keywords: keywordArray.length ? {
           set: [],
@@ -285,6 +299,7 @@ router.put("/:questionId", authenticate, isOwner, upload.single("image"), async 
       question: updatedQuestion.question,
       answer: updatedQuestion.answer,
       imageUrl: updatedQuestion.imageUrl,
+      difficulty: updatedQuestion.difficulty,
       userId: updatedQuestion.userId,
       keywords: updatedQuestion.keywords?.map(k => k.name) || [],
       userName: updatedQuestion.user?.name || null

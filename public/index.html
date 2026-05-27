@@ -101,7 +101,8 @@
     }
 
     .form-group input,
-    .form-group textarea {
+    .form-group textarea,
+    .form-group select {
       width: 100%;
       padding: 0.7rem 1rem;
       background: rgba(255, 255, 255, 0.08);
@@ -114,10 +115,16 @@
     }
 
     .form-group input:focus,
-    .form-group textarea:focus {
+    .form-group textarea:focus,
+    .form-group select:focus {
       outline: none;
       border-color: #ffd200;
       box-shadow: 0 0 0 3px rgba(255, 210, 0, 0.15);
+    }
+
+    .form-group select option {
+      background: #1a1a2e;
+      color: #fff;
     }
 
     .form-group textarea {
@@ -348,6 +355,7 @@
       display: flex;
       gap: 0.4rem;
       align-items: center;
+      flex-wrap: wrap;
     }
 
     .search-bar input {
@@ -358,7 +366,7 @@
       font-size: 0.85rem;
       font-family: inherit;
       color: #fff;
-      width: 200px;
+      width: 160px;
       transition: border-color 0.2s;
     }
 
@@ -369,6 +377,29 @@
 
     .search-bar input::placeholder {
       color: #666;
+    }
+
+    /* Difficulty filter select in toolbar */
+    .difficulty-select {
+      padding: 0.55rem 1rem;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-family: inherit;
+      color: #fff;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+
+    .difficulty-select:focus {
+      outline: none;
+      border-color: #ffd200;
+    }
+
+    .difficulty-select option {
+      background: #1a1a2e;
+      color: #fff;
     }
 
     .btn-search {

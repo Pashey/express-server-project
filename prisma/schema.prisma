@@ -15,23 +15,22 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   questions Question[]
-  likes     Like[]      
+  likes     Like[]
   attempts  Attempt[]
-
   @@map("users")
 }
 
 model Question {
-  id        Int      @id @default(autoincrement())
-  question  String   @db.Text
-  answer    String   @db.VarChar(255)
-  imageUrl  String?  @db.VarChar(255)
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id])
-  keywords  Keyword[]
-  likes     Like[]     
-  attempts  Attempt[]
-
+  id         Int      @id @default(autoincrement())
+  question   String   @db.Text
+  answer     String   @db.VarChar(255)
+  imageUrl   String?  @db.VarChar(255)
+  difficulty String   @default("medium") @db.VarChar(20)
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id])
+  keywords   Keyword[]
+  likes      Like[]
+  attempts   Attempt[]
   @@map("questions")
 }
 
@@ -39,7 +38,6 @@ model Keyword {
   id        Int        @id @default(autoincrement())
   name      String     @unique @db.VarChar(100)
   questions Question[]
-
   @@map("keywords")
 }
 
@@ -50,21 +48,19 @@ model Like {
   user       User     @relation(fields: [userId], references: [id])
   questionId Int
   question   Question @relation(fields: [questionId], references: [id])
-
   @@unique([userId, questionId])
   @@map("likes")
 }
 
 model Attempt {
-  id         Int      @id @default(autoincrement())
-  userId     Int
-  user       User     @relation(fields: [userId], references: [id])
-  questionId Int
-  question   Question @relation(fields: [questionId], references: [id])
-  userAnswer String   @db.VarChar(255)
-  isCorrect  Boolean
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id])
+  questionId  Int
+  question    Question @relation(fields: [questionId], references: [id])
+  userAnswer  String   @db.VarChar(255)
+  isCorrect   Boolean
   attemptedAt DateTime @default(now())
-
   @@unique([userId, questionId])
   @@map("attempts")
 }
