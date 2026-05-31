@@ -4,17 +4,16 @@ const pinoHttp = require("pino-http");
 const logger = require("./lib/logger");
 const questionsRouter = require("./routes/questions");
 const authRouter = require("./routes/auth");
+const leaderboardRouter = require("./routes/leaderboard");
 const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
 
-// Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use("/uploads", express.static(path.join(__dirname, "..", "public", "uploads")));
 app.use(express.static(path.join(__dirname, "..", "public")));
 
-// Logging middleware - before routes
 app.use(pinoHttp({
   logger,
   autoLogging: {
@@ -22,11 +21,10 @@ app.use(pinoHttp({
   },
 }));
 
-// Routes
 app.use("/api/auth", authRouter);
 app.use("/api/questions", questionsRouter);
+app.use("/api/leaderboard", leaderboardRouter);
 
-// Home route
 app.get("/", (req, res) => {
   res.json({
     message: "Welcome to the Quiz API",
@@ -43,16 +41,15 @@ app.get("/", (req, res) => {
       allKeywords: "GET /api/questions/keywords/all",
       likeQuestion: "POST /api/questions/:id/like",
       unlikeQuestion: "DELETE /api/questions/:id/like",
+      leaderboard: "GET /api/leaderboard",
     },
   });
 });
 
-// 404 handler for undefined routes
 app.use((req, res) => {
   res.status(404).json({ message: "Not found" });
 });
 
-// Global error handler - MUST BE LAST
 app.use(errorHandler);
 
 module.exports = app;

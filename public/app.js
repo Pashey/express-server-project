@@ -1,4 +1,3 @@
-// --- Auth helpers ---
 function getToken() {
   return localStorage.getItem(CONFIG.STORAGE_KEY);
 }
@@ -22,7 +21,6 @@ function getCurrentUserId() {
   }
 }
 
-// --- API helper ---
 async function apiFetch(url, options = {}) {
   const token = getToken();
   const headers = { ...options.headers };
@@ -38,14 +36,12 @@ async function apiFetch(url, options = {}) {
   return data;
 }
 
-// --- Heart helpers ---
 function heartIcon(liked) {
   return liked
     ? `<span style="color:#ff3b3b;-webkit-text-fill-color:#ff3b3b;font-style:normal">&#9829;</span>`
     : `<span style="color:#aaa;-webkit-text-fill-color:#aaa;font-style:normal">&#9825;</span>`;
 }
 
-// --- Difficulty badge ---
 function difficultyBadge(difficulty) {
   const map = {
     easy:   { label: "Easy",   color: "#51cf66", bg: "rgba(81,207,102,0.15)",   border: "rgba(81,207,102,0.3)" },
@@ -66,13 +62,13 @@ function difficultyBadge(difficulty) {
   ">${d.label}</span>`;
 }
 
-// --- Auth ---
 let isRegisterMode = false;
 
 function showAuth() {
   document.getElementById("auth-section").style.display = "block";
   document.getElementById("app-section").style.display = "none";
   document.getElementById("logout-btn").style.display = "none";
+  document.getElementById("leaderboard-btn").style.display = "none";
   isRegisterMode = false;
   renderAuthForm();
 }
@@ -138,11 +134,11 @@ async function handleAuth(e) {
   }
 }
 
-// --- App ---
 async function showApp() {
   document.getElementById("auth-section").style.display = "none";
   document.getElementById("app-section").style.display = "block";
   document.getElementById("logout-btn").style.display = "inline-block";
+  document.getElementById("leaderboard-btn").style.display = "inline-block";
   await loadQuestions();
 }
 
@@ -302,7 +298,50 @@ async function loadQuestions(keyword = "", page = 1, difficulty = "") {
   }
 }
 
-// --- Like toggle ---
+async function loadLeaderboard() {
+  const container = document.getElementById("questions-container");
+  container.innerHTML = '<p class="loading">Loading leaderboard...</p>';
+
+  try {
+    const leaderboard = await apiFetch("/api/leaderboard");
+
+    const medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"];
+
+    let html = `
+      <a href="#" id="back-btn" class="back-link">&larr; Back to questions</a>
+      <div class="question-form-wrapper">
+        <h2 style="text-align:center;margin-bottom:1.5rem">🏆 Leaderboard</h2>
+        <p style="text-align:center;color:#888;font-size:0.85rem;margin-bottom:1.5rem">Top 5 players by correct answers</p>`;
+
+    if (leaderboard.length === 0) {
+      html += `<p class="empty-state">No attempts yet. Be the first to play!</p>`;
+    } else {
+      html += `<div class="leaderboard-list">`;
+      leaderboard.forEach((user, i) => {
+        const isFirst = i === 0;
+        html += `
+          <div class="leaderboard-row ${isFirst ? "leaderboard-first" : ""}">
+            <span class="leaderboard-rank">${medals[i] || i + 1}</span>
+            <span class="leaderboard-name">${user.name}</span>
+            <span class="leaderboard-score">${user.correctAnswers} correct</span>
+          </div>`;
+      });
+      html += `</div>`;
+    }
+
+    html += `</div>`;
+    container.innerHTML = html;
+
+    document.getElementById("back-btn").addEventListener("click", (e) => {
+      e.preventDefault();
+      loadQuestions();
+    });
+
+  } catch (err) {
+    container.innerHTML = `<p class="error">${err.message}</p>`;
+  }
+}
+
 async function toggleLike(btn) {
   const qId = btn.dataset.id;
   const liked = btn.dataset.liked === "true";
@@ -383,7 +422,6 @@ async function loadQuestionDetail(qId) {
   }
 }
 
-// --- Create / Edit ---
 async function showQuestionForm(qId) {
   const container = document.getElementById("questions-container");
   const isEdit = !!qId;
@@ -464,7 +502,6 @@ async function showQuestionForm(qId) {
   });
 }
 
-// --- Play ---
 async function playQuestion(qId) {
   const container = document.getElementById("questions-container");
   container.innerHTML = '<p class="loading">Loading...</p>';
@@ -533,7 +570,6 @@ async function playQuestion(qId) {
   }
 }
 
-// --- Delete ---
 async function deleteQuestion(qId) {
   if (!confirm("Are you sure you want to delete this question?")) return;
 
@@ -550,9 +586,9 @@ function handleLogout() {
   showAuth();
 }
 
-// --- Init ---
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("logout-btn").addEventListener("click", handleLogout);
+  document.getElementById("leaderboard-btn").addEventListener("click", loadLeaderboard);
   if (getToken()) {
     showApp();
   } else {
