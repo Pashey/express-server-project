@@ -16,7 +16,6 @@ function parseKeywords(keywords) {
   return [];
 }
 
-// ✅ Named routes FIRST — before /:questionId
 router.get("/user/stats", authenticate, async (req, res, next) => {
   try {
     const userId = req.user.userId;
@@ -43,6 +42,55 @@ router.get("/keywords/all", authenticate, async (req, res, next) => {
   try {
     const keywords = await prisma.keyword.findMany({ orderBy: { name: "asc" } });
     res.json(keywords.map(k => k.name));
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/quiz", authenticate, async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const { difficulty } = req.query;
+
+    const where = difficulty && VALID_DIFFICULTIES.includes(difficulty)
+      ? { difficulty }
+      : {};
+
+    const total = await prisma.question.count({ where });
+    const take = Math.min(10, total);
+    const skip = total > take ? Math.floor(Math.random() * (total - take)) : 0;
+
+    const questions = await prisma.question.findMany({
+      where,
+      include: {
+        keywords: true,
+        user: true,
+        likes: { where: { userId }, take: 1 },
+        attempts: { where: { userId }, take: 1 }
+      },
+      skip,
+      take
+    });
+
+    const shuffled = questions.sort(() => Math.random() - 0.5);
+
+    res.json({
+      total: shuffled.length,
+      data: shuffled.map(q => ({
+        id: q.id,
+        question: q.question,
+        answer: q.answer,
+        imageUrl: q.imageUrl,
+        difficulty: q.difficulty,
+        userId: q.userId,
+        keywords: q.keywords?.map(k => k.name) || [],
+        userName: q.user?.name || null,
+        likeCount: q.likes?.length || 0,
+        likedByUser: (q.likes?.length || 0) > 0,
+        solved: (q.attempts?.length > 0 && q.attempts[0].isCorrect) || false,
+        attempted: (q.attempts?.length || 0) > 0
+      }))
+    });
   } catch (error) {
     next(error);
   }
@@ -102,7 +150,6 @@ router.get("/", authenticate, async (req, res, next) => {
   }
 });
 
-// ✅ Param routes AFTER named routes
 router.get("/:questionId", authenticate, async (req, res, next) => {
   try {
     const questionId = parseInt(req.params.questionId);
