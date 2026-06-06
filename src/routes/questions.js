@@ -281,7 +281,7 @@ router.post("/", authenticate, upload.single("image"), async (req, res, next) =>
         question,
         answer,
         difficulty: resolvedDifficulty,
-        imageUrl: req.file ? `/uploads/${req.file.filename}` : null,
+        imageUrl: req.file ? req.file.path : null,
         userId: req.user.userId,
         keywords: keywordArray.length ? {
           connectOrCreate: keywordArray.map(kw => ({
@@ -329,7 +329,7 @@ router.put("/:questionId", authenticate, isOwner, upload.single("image"), async 
         question,
         answer,
         difficulty: resolvedDifficulty,
-        imageUrl: req.file ? `/uploads/${req.file.filename}` : existingImageUrl,
+        imageUrl: req.file ? req.file.path : existingImageUrl,
         keywords: keywordArray.length ? {
           set: [],
           connectOrCreate: keywordArray.map(kw => ({
